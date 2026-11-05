@@ -22,6 +22,7 @@ import org.apache.commons.collections.CollectionUtils;
 import org.wso2.carbon.identity.action.execution.api.model.ActionType;
 import org.wso2.carbon.identity.action.execution.api.model.Header;
 import org.wso2.carbon.identity.action.execution.api.model.Param;
+import org.wso2.carbon.identity.action.management.api.model.Action;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -67,8 +68,10 @@ public class RequestFilter {
             allowedHeaders.addAll(allowedHeadersInAction);
         } else if (hasServerAllowedHeaders) {
             allowedHeaders.addAll(allowedHeadersInServer);
-        } else if (ActionType.PRE_ISSUE_ACCESS_TOKEN.equals(actionType)) {
-            // This is to preserve backward compatibility.
+        } else if (ActionType.PRE_ISSUE_ACCESS_TOKEN.equals(actionType)
+                || Action.ActionTypes.Category.FLOW_EXTENSION.equals(actionType.getCategory())) {
+            // Pre issue access token: to preserve backward compatibility. Flow extension: the request carries only
+            // the headers its access config exposes.
             allowedHeaders.addAll(requestHeaders.stream()
                     .map(Header::getName)
                     .collect(Collectors.toSet()));
@@ -90,11 +93,9 @@ public class RequestFilter {
         Set<String> normalizedAllowedHeaders = allowedHeaders.stream()
                 .map(header -> header.toLowerCase(Locale.ROOT))
                 .collect(Collectors.toSet());
-        List<Header> normalizeRequestHeaders = requestHeaders.stream()
-                .map(header -> new Header(header.getName().toLowerCase(Locale.ROOT), header.getValue()))
-                .collect(Collectors.toList());
+        List<Header> normalizedRequestHeaders = requestHeaders.stream().map(Header::withNormalizedName).toList();
 
-        return normalizeRequestHeaders.stream()
+        return normalizedRequestHeaders.stream()
                 .filter(header -> normalizedAllowedHeaders.contains(header.getName()))
                 .collect(Collectors.toList());
     }
